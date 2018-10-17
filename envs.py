@@ -39,6 +39,8 @@ def make_env(env_id, seed, rank, log_dir, add_timestep, allow_early_resets):
             env = gym.make(env_id)
             if 'micropolis' in env_id.lower():
                 env.setMapSize(6)
+                if rank == 0:
+                    env.print_map = True
         is_atari = hasattr(gym.envs, 'atari') and isinstance(
             env.unwrapped, gym.envs.atari.atari_env.AtariEnv)
         if is_atari:
