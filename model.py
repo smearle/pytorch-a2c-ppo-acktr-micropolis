@@ -18,15 +18,19 @@ class Policy(nn.Module):
             base_kwargs = {}
 
         if len(obs_shape) == 3:
-            self.base = CNNBase(obs_shape[0], **base_kwargs)
+            self.base = MicropolisBase(obs_shape[0], **base_kwargs)
         elif len(obs_shape) == 1:
             self.base = MLPBase(obs_shape[0], **base_kwargs)
         else:
             raise NotImplementedError
 
         if action_space.__class__.__name__ == "Discrete":
-            num_outputs = action_space.n
-            self.dist = Categorical(self.base.output_size, num_outputs)
+            if True:
+                num_outputs = action_space.n
+                self.dist = Categorical(self.base.output_size, num_outputs)
+            else:
+                num_outputs = action_space.n
+                self.dist = Categorical(self.base.output_size, num_outputs)
         elif action_space.__class__.__name__ == "Box":
             num_outputs = action_space.shape[0]
             self.dist = DiagGaussian(self.base.output_size, num_outputs)
@@ -129,6 +133,54 @@ class NNBase(nn.Module):
 
         return x, hxs
 
+class MicropolisBase(NNBase):
+    def __init__(self, num_inputs, recurrent=False, hidden_size=512):
+        super(MicropolisBase, self).__init__(recurrent, hidden_size, hidden_size)
+
+        init_ = lambda m: init(m,
+            nn.init.orthogonal_,
+            lambda x: nn.init.constant_(x, 0),
+            nn.init.calculate_gain('relu'))
+
+
+        self.main = nn.Sequential(
+            init_(nn.Conv2d(num_inputs, 32, 3, stride=1, padding=1)),
+            nn.ReLU(),
+            init_(nn.Conv2d(32, 32, 3, stride=1, padding=1)),
+            nn.ReLU(),
+            init_(nn.Conv2d(32, 32, 3, stride=1)),
+            nn.ReLU(),
+            init_(nn.Conv2d(32, 64, 3, stride=1)),
+            nn.ReLU(),
+            init_(nn.Conv2d(64, 64, 2, stride=1)),
+            nn.ReLU(),
+            Flatten(),
+        )
+
+        self.lin_0 = nn.Linear(2224, hidden_size)
+        init_(self.lin_0)
+
+        init_ = lambda m: init(m,
+        nn.init.orthogonal_,
+        lambda x: nn.init.constant_(x, 0))
+        
+        self.critic_linear = init_(nn.Linear(hidden_size, 1))
+
+        self.train()
+
+    def forward(self, inputs, rnn_hxs, masks):
+#       print(inputs.shape)
+        x = self.main(inputs)
+#       print(x.shape)
+        x = torch.cat((inputs.view(inputs.size(0), -1), x), 1)
+#       print(x.shape)
+        x = self.lin_0(x)
+        x = F.relu(x)
+#       print(x.shape)
+        if self.is_recurrent:
+            x, rnn_hxs = self._forward_gru(x, rnn_hxs, masks)
+
+        return self.critic_linear(x), x, rnn_hxs
 
 class CNNBase(NNBase):
     def __init__(self, num_inputs, recurrent=False, hidden_size=512):

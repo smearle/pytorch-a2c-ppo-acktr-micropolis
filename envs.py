@@ -12,6 +12,7 @@ from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from baselines.common.vec_env.vec_normalize import VecNormalize as VecNormalize_
 
+import gym_micropolis
 
 try:
     import dm_control2gym
@@ -36,6 +37,8 @@ def make_env(env_id, seed, rank, log_dir, add_timestep, allow_early_resets):
             env = dm_control2gym.make(domain_name=domain, task_name=task)
         else:
             env = gym.make(env_id)
+            if 'micropolis' in env_id.lower():
+                env.setMapSize(6)
         is_atari = hasattr(gym.envs, 'atari') and isinstance(
             env.unwrapped, gym.envs.atari.atari_env.AtariEnv)
         if is_atari:
@@ -83,6 +86,7 @@ def make_vec_envs(env_name, seed, num_processes, gamma, log_dir, add_timestep,
     envs = VecPyTorch(envs, device)
 
     if num_frame_stack is not None:
+        print(num_frame_stack)
         envs = VecPyTorchFrameStack(envs, num_frame_stack, device)
     elif len(envs.observation_space.shape) == 3:
         envs = VecPyTorchFrameStack(envs, 4, device)
@@ -134,7 +138,10 @@ class VecPyTorch(VecEnvWrapper):
 
     def reset(self):
         obs = self.venv.reset()
-        obs = torch.from_numpy(obs).float().to(self.device)
+        ### micropolis ###
+        obs = np.array(obs)
+        ### ########## ###
+        obs = torch.from_numpy(obs).int().to(self.device)
         return obs
 
     def step_async(self, actions):
@@ -143,7 +150,10 @@ class VecPyTorch(VecEnvWrapper):
 
     def step_wait(self):
         obs, reward, done, info = self.venv.step_wait()
-        obs = torch.from_numpy(obs).float().to(self.device)
+        ### micropolis ###
+        obs = np.array(obs)
+        ### ########## ###
+        obs = torch.from_numpy(obs).int().to(self.device)
         reward = torch.from_numpy(reward).unsqueeze(dim=1).float()
         return obs, reward, done, info
 
