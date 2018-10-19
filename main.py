@@ -138,6 +138,7 @@ def main():
                           getattr(get_vec_normalize(envs), 'ob_rms', None)]
 
             torch.save(save_model, os.path.join(save_path, args.env_name + ".pt"))
+            torch.save(actor_critic.state_dict(), os.path.join(save_path, args.env_name + "_weights.pt"))
 
         total_num_steps = (j + 1) * args.num_processes * args.num_steps
 

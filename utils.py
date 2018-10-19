@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-
 from envs import VecNormalize
 
 
@@ -41,7 +40,7 @@ class AddBias(nn.Module):
 
 
 def init(module, weight_init, bias_init, gain=1):
-    weight_init(module.weight.data, gain=gain)
+    weight_init(module.weight.data)
     bias_init(module.bias.data)
     return module
 

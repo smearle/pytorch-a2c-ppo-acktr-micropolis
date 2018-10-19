@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from distributions import Categorical, DiagGaussian
+from distributions import Categorical2D
 from utils import init, init_normc_
 
 
@@ -27,13 +27,15 @@ class Policy(nn.Module):
         if action_space.__class__.__name__ == "Discrete":
             if True:
                 num_outputs = action_space.n
-                self.dist = Categorical(self.base.output_size, num_outputs)
+                self.dist = Categorical2D(self.base.output_size, num_outputs)
             else:
                 num_outputs = action_space.n
-                self.dist = Categorical(self.base.output_size, num_outputs)
+                self.dist = Categorical2D(self.base.output_size, num_outputs)
         elif action_space.__class__.__name__ == "Box":
             num_outputs = action_space.shape[0]
-            self.dist = DiagGaussian(self.base.output_size, num_outputs)
+#           self.dist = DiagGaussian(self.base.output_size, num_outputs)
+            self.dist = Categorical2D(self.base.output_size, num_outputs)
+
         else:
             raise NotImplementedError
 
@@ -142,45 +144,46 @@ class MicropolisBase(NNBase):
             lambda x: nn.init.constant_(x, 0),
             nn.init.calculate_gain('relu'))
 
-
         self.main = nn.Sequential(
             init_(nn.Conv2d(num_inputs, 32, 3, stride=1, padding=1)),
             nn.ReLU(),
             init_(nn.Conv2d(32, 32, 3, stride=1, padding=1)),
             nn.ReLU(),
-            init_(nn.Conv2d(32, 32, 3, stride=1)),
+            init_(nn.Conv2d(32, 32, 3, stride=1, padding=1)),
             nn.ReLU(),
-            init_(nn.Conv2d(32, 64, 3, stride=1)),
-            nn.ReLU(),
-            init_(nn.Conv2d(64, 64, 2, stride=1)),
-            nn.ReLU(),
-            Flatten(),
+#           Flatten(),
         )
 
-        self.lin_0 = nn.Linear(2224, hidden_size)
-        init_(self.lin_0)
+        self.input_compress = nn.Conv2d(num_inputs, 5, 1, stride=1)
+        init_(self.input_compress)
+#       self.lin_0 = nn.Linear(5200, hidden_size)
+        self.conv_0 = nn.Conv2d(37, 8, 3, 1, 1)
+        init_(self.conv_0)
 
         init_ = lambda m: init(m,
         nn.init.orthogonal_,
         lambda x: nn.init.constant_(x, 0))
         
-        self.critic_linear = init_(nn.Linear(hidden_size, 1))
+        self.critic_linear = init_(nn.Linear(3200, 1))
 
         self.train()
 
     def forward(self, inputs, rnn_hxs, masks):
-#       print(inputs.shape)
+#       inputs = torch.Tensor(inputs)
+#       inputs =inputs.view((1,) + inputs.shape)
         x = self.main(inputs)
-#       print(x.shape)
-        x = torch.cat((inputs.view(inputs.size(0), -1), x), 1)
-#       print(x.shape)
-        x = self.lin_0(x)
+        skip_input = F.relu(self.input_compress(inputs))
+#       x = torch.cat((skip_input.view(skip_input.size(0), -1), x), 1)
+        x = torch.cat ((x, skip_input), 1)
+        x = self.conv_0(x)
+#       x = self.lin_0(x)
         x = F.relu(x)
-#       print(x.shape)
+#       x = x.view(x.size(0), -1)
+
         if self.is_recurrent:
             x, rnn_hxs = self._forward_gru(x, rnn_hxs, masks)
 
-        return self.critic_linear(x), x, rnn_hxs
+        return self.critic_linear(x.view(x.size(0), -1)), x, rnn_hxs
 
 class CNNBase(NNBase):
     def __init__(self, num_inputs, recurrent=False, hidden_size=512):

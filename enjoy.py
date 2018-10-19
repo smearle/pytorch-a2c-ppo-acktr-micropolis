@@ -4,6 +4,7 @@ import os
 import numpy as np
 import torch
 
+from model import Policy
 from envs import VecPyTorch, make_vec_envs
 from utils import get_render_func, get_vec_normalize
 
@@ -25,21 +26,39 @@ args = parser.parse_args()
 
 args.det = not args.non_det
 
+import gym
+import gym_micropolis
 env = make_vec_envs(args.env_name, args.seed + 1000, 1,
                             None, None, args.add_timestep, device='cpu',
                             allow_early_resets=False)
+env = gym.make(args.env_name)
+env.setMapSize(20, print_map=True)
 
 # Get a render function
-render_func = get_render_func(env)
+render_func = env.render
+#render_func = get_render_func(env)
 
 # We need to use the same statistics for normalization as used in training
-actor_critic, ob_rms = \
-            torch.load(os.path.join(args.load_dir, args.env_name + ".pt"))
+actor_critic = Policy(env.observation_space.shape, env.action_space)
+dict1 = torch.load(os.path.join(args.load_dir, args.env_name + "_weights.pt"))
+dict2 = {}
+for s in dict1.keys():
+    s2 = ''.join(''.join(s.split('.module')).split('.add_bias')).replace('._bias', '.bias')
+    dict2[s2] = dict1[s]
+    if len(dict1[s].shape) == 2 and dict1[s].shape[1] == 1:
+        dict2[s2] = dict2[s2].view((dict2[s2].shape)).view((-1))
+    if len(dict2[s2].shape) == 4 and dict2[s2].shape[1] == 15:
+#       dict2[s2] = dict2[s2].view((1,) + dict2[s2].shape)
+        print(dict1[s].shape)
+actor_critic.load_state_dict(dict2)
 
-vec_norm = get_vec_normalize(env)
-if vec_norm is not None:
-    vec_norm.eval()
-    vec_norm.ob_rms = ob_rms
+#actor_critic, ob_rms = \
+#            torch.load(os.path.join(args.load_dir, args.env_name + ".pt"))
+
+#vec_norm = get_vec_normalize(env)
+#if vec_norm is not None:
+#    vec_norm.eval()
+#    vec_norm.ob_rms = ob_rms
 
 recurrent_hidden_states = torch.zeros(1, actor_critic.recurrent_hidden_state_size)
 masks = torch.zeros(1, 1)
@@ -48,6 +67,7 @@ if render_func is not None:
     render_func('human')
 
 obs = env.reset()
+obs = torch.Tensor(obs)
 
 if args.env_name.find('Bullet') > -1:
     import pybullet as p
@@ -63,7 +83,8 @@ while True:
             obs, recurrent_hidden_states, masks, deterministic=args.det)
 
     # Obser reward and next obs
-    obs, reward, done, _ = env.step(action)
+    print('doin a step')
+    obs, reward, done, _ = env.step(action.item())
 
     masks.fill_(0.0 if done else 1.0)
 

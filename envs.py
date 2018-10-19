@@ -6,7 +6,7 @@ import torch
 from gym.spaces.box import Box
 
 from baselines import bench
-from baselines.common.atari_wrappers import make_atari, wrap_deepmind
+#from baselines.common.atari_wrappers import make_atari, wrap_deepmind
 from baselines.common.vec_env import VecEnvWrapper
 from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
@@ -38,7 +38,7 @@ def make_env(env_id, seed, rank, log_dir, add_timestep, allow_early_resets):
         else:
             env = gym.make(env_id)
             if 'micropolis' in env_id.lower():
-                env.setMapSize(6)
+                env.setMapSize(20)
                 if rank == 0:
                     env.print_map = True
         is_atari = hasattr(gym.envs, 'atari') and isinstance(
@@ -77,7 +77,7 @@ def make_vec_envs(env_name, seed, num_processes, gamma, log_dir, add_timestep,
     if len(envs) > 1:
         envs = SubprocVecEnv(envs)
     else:
-        envs = DummyVecEnv(envs)
+        envs = DummyVecEnv('DummyVecEnv', (), {1:envs})
 
     if len(envs.observation_space.shape) == 1:
         if gamma is None:
