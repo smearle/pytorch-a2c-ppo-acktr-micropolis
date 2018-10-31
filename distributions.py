@@ -38,7 +38,7 @@ class Categorical2D(nn.Module):
              lambda x: nn.init.constant_(x, 0),
              gain = 0.01)
              
-        self.conv = init_(nn.Conv2d(8, 8, 3, 1, 1))
+        self.conv = init_(nn.Conv2d(19, 19, 1, 1, 0))
 
     def forward(self, x):
         x = self.conv(x)

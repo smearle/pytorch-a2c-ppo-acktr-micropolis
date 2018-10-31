@@ -22,6 +22,8 @@ parser.add_argument('--add-timestep', action='store_true', default=False,
                     help='add timestep to observations')
 parser.add_argument('--non-det', action='store_true', default=False,
                     help='whether to use a non-deterministic policy')
+parser.add_argument('--map-width', type=int, default=50,
+                    help='whether to use a non-deterministic policy')
 args = parser.parse_args()
 
 args.det = not args.non_det
@@ -30,41 +32,41 @@ import gym
 import gym_micropolis
 env = make_vec_envs(args.env_name, args.seed + 1000, 1,
                             None, None, args.add_timestep, device='cpu',
-                            allow_early_resets=False)
-env = gym.make(args.env_name)
-env.setMapSize(20, print_map=True)
+                            allow_early_resets=False,
+                            map_width=args.map_width)
+
+env.venv.venv.envs[0].setMapSize(args.map_width, print_map=False, parallel_gui=True)
 
 # Get a render function
-render_func = env.render
 #render_func = get_render_func(env)
 
 # We need to use the same statistics for normalization as used in training
 actor_critic = Policy(env.observation_space.shape, env.action_space)
-dict1 = torch.load(os.path.join(args.load_dir, args.env_name + "_weights.pt"))
-dict2 = {}
-for s in dict1.keys():
-    s2 = ''.join(''.join(s.split('.module')).split('.add_bias')).replace('._bias', '.bias')
-    dict2[s2] = dict1[s]
-    if len(dict1[s].shape) == 2 and dict1[s].shape[1] == 1:
-        dict2[s2] = dict2[s2].view((dict2[s2].shape)).view((-1))
-    if len(dict2[s2].shape) == 4 and dict2[s2].shape[1] == 15:
-#       dict2[s2] = dict2[s2].view((1,) + dict2[s2].shape)
-        print(dict1[s].shape)
-actor_critic.load_state_dict(dict2)
+#dict1 = torch.load(os.path.join(args.load_dir, args.env_name + "_weights.pt"))
+#dict2 = {}
+#for s in dict1.keys():
+#    s2 = ''.join(''.join(s.split('.module')).split('.add_bias')).replace('._bias', '.bias')
+#    dict2[s2] = dict1[s]
+#    if len(dict1[s].shape) == 2 and dict1[s].shape[1] == 1:
+#        dict2[s2] = dict2[s2].view((dict2[s2].shape)).view((-1))
+#    if len(dict2[s2].shape) == 4 and dict2[s2].shape[1] == 15:
+##       dict2[s2] = dict2[s2].view((1,) + dict2[s2].shape)
+#        print(dict1[s].shape)
+##actor_critic.load_state_dict(dict2)
 
-#actor_critic, ob_rms = \
-#            torch.load(os.path.join(args.load_dir, args.env_name + ".pt"))
+actor_critic, ob_rms = \
+            torch.load(os.path.join(args.load_dir, args.env_name + ".pt"))
 
-#vec_norm = get_vec_normalize(env)
-#if vec_norm is not None:
-#    vec_norm.eval()
-#    vec_norm.ob_rms = ob_rms
+vec_norm = get_vec_normalize(env)
+if vec_norm is not None:
+    vec_norm.eval()
+    vec_norm.ob_rms = ob_rms
 
 recurrent_hidden_states = torch.zeros(1, actor_critic.recurrent_hidden_state_size)
 masks = torch.zeros(1, 1)
 
-if render_func is not None:
-    render_func('human')
+#if render_func is not None:
+#    render_func('human')
 
 obs = env.reset()
 obs = torch.Tensor(obs)
@@ -77,14 +79,18 @@ if args.env_name.find('Bullet') > -1:
         if (p.getBodyInfo(i)[0].decode() == "torso"):
             torsoId = i
 
+num_step = 0
 while True:
     with torch.no_grad():
         value, action, _, recurrent_hidden_states = actor_critic.act(
             obs, recurrent_hidden_states, masks, deterministic=args.det)
 
+    if num_step >= 5000:
+        env.reset()
+        num_step = 0
     # Obser reward and next obs
-    print('doin a step')
-    obs, reward, done, _ = env.step(action.item())
+    obs, reward, done, _ = env.step(action)
+    num_step += 1
 
     masks.fill_(0.0 if done else 1.0)
 
@@ -95,5 +101,5 @@ while True:
             humanPos, humanOrn = p.getBasePositionAndOrientation(torsoId)
             p.resetDebugVisualizerCamera(distance, yaw, -20, humanPos)
 
-    if render_func is not None:
-        render_func('human')
+#   if render_func is not None:
+#       render_func('human')

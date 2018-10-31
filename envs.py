@@ -1,4 +1,5 @@
 import os
+import sys
 
 import gym
 import numpy as np
@@ -30,7 +31,7 @@ except ImportError:
     pass
 
 
-def make_env(env_id, seed, rank, log_dir, add_timestep, allow_early_resets):
+def make_env(env_id, seed, rank, log_dir, add_timestep, allow_early_resets, map_width=20):
     def _thunk():
         if env_id.startswith("dm"):
             _, domain, task = env_id.split('.')
@@ -38,9 +39,11 @@ def make_env(env_id, seed, rank, log_dir, add_timestep, allow_early_resets):
         else:
             env = gym.make(env_id)
             if 'micropolis' in env_id.lower():
-                env.setMapSize(20)
                 if rank == 0:
-                    env.print_map = True
+                    env.setMapSize(map_width, print_map=False, parallel_gui=False)
+                else:
+                    env.setMapSize(map_width)
+
         is_atari = hasattr(gym.envs, 'atari') and isinstance(
             env.unwrapped, gym.envs.atari.atari_env.AtariEnv)
         if is_atari:
@@ -70,14 +73,17 @@ def make_env(env_id, seed, rank, log_dir, add_timestep, allow_early_resets):
     return _thunk
 
 def make_vec_envs(env_name, seed, num_processes, gamma, log_dir, add_timestep,
-                  device, allow_early_resets, num_frame_stack=None):
-    envs = [make_env(env_name, seed, i, log_dir, add_timestep, allow_early_resets)
+                  device, allow_early_resets, num_frame_stack=None, map_width=20):
+    envs = [make_env(env_name, seed, i, log_dir, add_timestep, allow_early_resets, map_width=map_width)
             for i in range(num_processes)]
 
     if len(envs) > 1:
         envs = SubprocVecEnv(envs)
     else:
-        envs = DummyVecEnv('DummyVecEnv', (), {1:envs})
+        if sys.version[0] =='2':
+            envs = DummyVecEnv('DummyVecEnv', (), {1:envs})
+        else:
+            envs = DummyVecEnv(envs)
 
     if len(envs.observation_space.shape) == 1:
         if gamma is None:

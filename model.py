@@ -144,46 +144,57 @@ class MicropolisBase(NNBase):
             lambda x: nn.init.constant_(x, 0),
             nn.init.calculate_gain('relu'))
 
-        self.main = nn.Sequential(
-            init_(nn.Conv2d(num_inputs, 32, 3, stride=1, padding=1)),
-            nn.ReLU(),
-            init_(nn.Conv2d(32, 32, 3, stride=1, padding=1)),
-            nn.ReLU(),
-            init_(nn.Conv2d(32, 32, 3, stride=1, padding=1)),
-            nn.ReLU(),
-#           Flatten(),
-        )
+        import sys
+        if sys.version[0] == '2':
+            num_inputs=104
+        self.conv_0 = nn.Conv2d(num_inputs, 64, 5, 1, 2)
+        init_(self.conv_0)
+        self.conv_1 = nn.Conv2d(64, 64, 3, 1, 1)
+        init_(self.conv_1)
+#       self.conv_2 = nn.Conv2d(32, 32, 3, 1, 1)
+#       init_(self.conv_1)
 
-        self.input_compress = nn.Conv2d(num_inputs, 5, 1, stride=1)
+
+        self.input_compress = nn.Conv2d(num_inputs, 15, 1, stride=1)
         init_(self.input_compress)
 #       self.lin_0 = nn.Linear(5200, hidden_size)
-        self.conv_0 = nn.Conv2d(37, 8, 3, 1, 1)
-        init_(self.conv_0)
+        self.actor_compress = nn.Conv2d(79, 19, 3, 1, 1)
+        init_(self.actor_compress)
 
         init_ = lambda m: init(m,
-        nn.init.orthogonal_,
-        lambda x: nn.init.constant_(x, 0))
-        
-        self.critic_linear = init_(nn.Linear(3200, 1))
+            nn.init.dirac_,
+            lambda x: nn.init.constant_(x, 0),
+            nn.init.calculate_gain('relu'))
+
+        self.critic_compress = init_(nn.Conv2d(79, 8, 1, 1, 0))
+      # self.critic_conv_0 = init_(nn.Conv2d(16, 1, 20, 1, 0))
+
+        init_ = lambda m: init(m,
+            nn.init.dirac_,
+            lambda x: nn.init.constant_(x, 0))
+
+        self.critic_conv_1 = init_(nn.Conv2d(8, 1, 20, 1, 0))
 
         self.train()
 
     def forward(self, inputs, rnn_hxs, masks):
 #       inputs = torch.Tensor(inputs)
 #       inputs =inputs.view((1,) + inputs.shape)
-        x = self.main(inputs)
-        skip_input = F.relu(self.input_compress(inputs))
-#       x = torch.cat((skip_input.view(skip_input.size(0), -1), x), 1)
-        x = torch.cat ((x, skip_input), 1)
+        x = inputs
         x = self.conv_0(x)
-#       x = self.lin_0(x)
         x = F.relu(x)
-#       x = x.view(x.size(0), -1)
+        for i in range(1):
+            x = F.relu(self.conv_1(x))
+#       x = F.relu(self.conv_2(x))
+        skip_input = F.relu(self.input_compress(inputs))
+        x = F.relu(x)
+        x = torch.cat ((x, skip_input), 1)
+        values = F.relu(self.critic_compress(x))
+#       values = F.relu(self.critic_conv_0(values))
+        values = self.critic_conv_1(values).view(values.size(0), -1)
+        actions = F.relu(self.actor_compress(x))
 
-        if self.is_recurrent:
-            x, rnn_hxs = self._forward_gru(x, rnn_hxs, masks)
-
-        return self.critic_linear(x.view(x.size(0), -1)), x, rnn_hxs
+        return values, actions, rnn_hxs
 
 class CNNBase(NNBase):
     def __init__(self, num_inputs, recurrent=False, hidden_size=512):
