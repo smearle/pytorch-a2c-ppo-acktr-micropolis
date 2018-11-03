@@ -1,0 +1,3 @@
+conv_1 back to k5, added conv_2 with k3, one pass thru each (no repeats) - keeping same hyperparameters (10e6 frames, 12 processes)
+
+Caught onto roads, unstable, ended on nice configuration with road-borders on city's edge, let's see if repeated passes through these two convs in sequence improves learning (need to increase num_frames soon - none of these past trials have properly stabilized, but hanging onto 10e6 for now, for the sake of comparison)

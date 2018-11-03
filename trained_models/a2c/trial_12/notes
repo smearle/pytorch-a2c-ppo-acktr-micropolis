@@ -1,0 +1,1 @@
+beefing up the middle repeated conv layer to kernel width of 5 appears to ever so slightly increase the max score, and lessen the time until the discovery of road-res combo. Now let's make the kernel width 7.

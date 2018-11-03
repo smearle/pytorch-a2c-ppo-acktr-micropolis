@@ -1,0 +1,2 @@
+conv_1 is repeated 10 times - slightly better max score that repeating conv_1 5 times, but 2.5* longer to catch onto roads. 
+Going to increase kernel of conv_1 from 3 to 5, in the interest of allowing tiles on opposite sides to connect with one another, through the repeated "game-of-life"-type rules of the middle convolution, while also making these rules more robust
