@@ -27,8 +27,8 @@ def get_args():
                         help='max norm of gradients (default: 0.5)')
     parser.add_argument('--seed', type=int, default=1,
                         help='random seed (default: 1)')
-    parser.add_argument('--num-processes', type=int, default=16,
-                        help='how many training CPU processes to use (default: 16)')
+    parser.add_argument('--num-processes', type=int, default=12,
+                        help='how many training CPU processes to use (default: 12)')
     parser.add_argument('--num-steps', type=int, default=5,
                         help='number of forward steps in A2C (default: 5)')
     parser.add_argument('--ppo-epoch', type=int, default=4,
@@ -47,22 +47,27 @@ def get_args():
                         help='vis interval, one log per n updates (default: 100)')
     parser.add_argument('--num-frames', type=int, default=10e6,
                         help='number of frames to train (default: 10e6)')
-    parser.add_argument('--env-name', default='PongNoFrameskip-v4',
+    parser.add_argument('--env-name', default='MicropolisEnv-v0',
                         help='environment to train on (default: PongNoFrameskip-v4)')
-    parser.add_argument('--log-dir', default='/tmp/gym/',
+    parser.add_argument('--log-dir', default='trained_models/a2c/',
                         help='directory to save agent logs (default: /tmp/gym)')
     parser.add_argument('--save-dir', default='./trained_models/',
                         help='directory to save agent logs (default: ./trained_models/)')
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='disables CUDA training')
+    parser.add_argument('--render', action='store_true', default=False, 
+                        help="render gui of single agent during training")
+    parser.add_argument('--print-map', action='store_true', default=False)
     parser.add_argument('--add-timestep', action='store_true', default=False,
                         help='add timestep to observations')
     parser.add_argument('--recurrent-policy', action='store_true', default=False,
                         help='use a recurrent policy')
-    parser.add_argument('--vis', action='store_true', default=False,
+    parser.add_argument('--vis', action='store_true', default=True,
                         help='enable visdom visualization')
     parser.add_argument('--port', type=int, default=8097,
                         help='port to run the server on (default: 8097)')
+    parser.add_argument('--map-width', type=int, default=20, 
+                        help="width of micropolis map")
     args = parser.parse_args()
 
     args.cuda = not args.no_cuda and torch.cuda.is_available()

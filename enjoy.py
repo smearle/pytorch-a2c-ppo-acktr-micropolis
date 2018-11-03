@@ -35,10 +35,10 @@ env = make_vec_envs(args.env_name, args.seed + 1000, 1,
                             allow_early_resets=False,
                             map_width=args.map_width)
 
-env.venv.venv.envs[0].setMapSize(args.map_width, print_map=False, parallel_gui=True)
+env.venv.venv.envs[0].setMapSize(args.map_width, print_map=True, render_gui=True)
 
 # Get a render function
-#render_func = get_render_func(env)
+# render_func = get_render_func(env)
 
 # We need to use the same statistics for normalization as used in training
 actor_critic = Policy(env.observation_space.shape, env.action_space)
@@ -85,7 +85,7 @@ while True:
         value, action, _, recurrent_hidden_states = actor_critic.act(
             obs, recurrent_hidden_states, masks, deterministic=args.det)
 
-    if num_step >= 5000:
+    if num_step >= 500:
         env.reset()
         num_step = 0
     # Obser reward and next obs

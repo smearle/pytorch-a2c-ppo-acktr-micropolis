@@ -147,12 +147,14 @@ class MicropolisBase(NNBase):
         import sys
         if sys.version[0] == '2':
             num_inputs=104
+        assert num_inputs / 4 ==26
+
         self.conv_0 = nn.Conv2d(num_inputs, 64, 5, 1, 2)
         init_(self.conv_0)
-        self.conv_1 = nn.Conv2d(64, 64, 3, 1, 1)
+        self.conv_1 = nn.Conv2d(64, 64, 5, 1, 2)
         init_(self.conv_1)
-#       self.conv_2 = nn.Conv2d(32, 32, 3, 1, 1)
-#       init_(self.conv_1)
+        self.conv_2 = nn.Conv2d(64, 64, 3, 1, 1)
+        init_(self.conv_2)
 
 
         self.input_compress = nn.Conv2d(num_inputs, 15, 1, stride=1)
@@ -183,11 +185,11 @@ class MicropolisBase(NNBase):
         x = inputs
         x = self.conv_0(x)
         x = F.relu(x)
-        for i in range(1):
+        for i in range(5):
+#           x = torch.cat((x, inputs[:,-26:]), 1)
             x = F.relu(self.conv_1(x))
-#       x = F.relu(self.conv_2(x))
+            x = F.relu(self.conv_2(x))
         skip_input = F.relu(self.input_compress(inputs))
-        x = F.relu(x)
         x = torch.cat ((x, skip_input), 1)
         values = F.relu(self.critic_compress(x))
 #       values = F.relu(self.critic_conv_0(values))
