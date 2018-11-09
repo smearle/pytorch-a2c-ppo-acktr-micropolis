@@ -1,3 +1,0 @@
-boosting the middle kernel-size slows training down significantly - consider adding anotherlayer with a smaller kernel instead? Or single layer with more channels?
-
-Never caught on to roads, though the reward floor did increase and approach 50, and reached a very clean residential grid layout (basically perfect grid). Presumably, longer training process would get us to approaches using both road and res.
