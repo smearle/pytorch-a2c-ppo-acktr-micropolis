@@ -212,7 +212,8 @@ class KFACOptimizer(optim.Optimizer):
                 self.d_a[m].mul_((self.d_a[m] > 1e-6).float())
                 self.d_g[m].mul_((self.d_g[m] > 1e-6).float())
 
-            if classname == 'Conv2d':
+            # Not sure if this is ok
+            if classname == 'Conv2d' or classname == 'ConvTranspose2d':
                 p_grad_mat = p.grad.data.view(p.grad.data.size(0), -1)
             else:
                 p_grad_mat = p.grad.data

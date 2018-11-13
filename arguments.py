@@ -68,6 +68,8 @@ def get_args():
                         help='port to run the server on (default: 8097)')
     parser.add_argument('--map-width', type=int, default=20, 
                         help="width of micropolis map")
+    parser.add_argument('--empty-start', action='store_true', default=False)
+    parser.add_argument('--curiosity', action='store_true', default=False)
     args = parser.parse_args()
 
     args.cuda = not args.no_cuda and torch.cuda.is_available()

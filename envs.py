@@ -31,7 +31,7 @@ except ImportError:
     pass
 
 
-def make_env(env_id, seed, rank, log_dir, add_timestep, allow_early_resets, map_width=20, render_gui=False, print_map=False):
+def make_env(env_id, seed, rank, log_dir, add_timestep, allow_early_resets, map_width=20, render_gui=False, print_map=False, parallel_py2gui=False):
     def _thunk():
         if env_id.startswith("dm"):
             _, domain, task = env_id.split('.')
@@ -39,8 +39,9 @@ def make_env(env_id, seed, rank, log_dir, add_timestep, allow_early_resets, map_
         else:
             env = gym.make(env_id)
             if 'micropolis' in env_id.lower():
+                print("ENV RANK: ", rank)
                 if rank == 0:
-                    env.setMapSize(map_width, print_map=print_map, parallel_gui=False, render_gui=render_gui)
+                    env.setMapSize(map_width, print_map=print_map, parallel_gui=parallel_py2gui, render_gui=render_gui, empty_start=True)
                 else:
                     env.setMapSize(map_width)
 
@@ -73,8 +74,12 @@ def make_env(env_id, seed, rank, log_dir, add_timestep, allow_early_resets, map_
     return _thunk
 
 def make_vec_envs(env_name, seed, num_processes, gamma, log_dir, add_timestep,
-                  device, allow_early_resets, num_frame_stack=None, map_width=20, render_gui=False, print_map=False):
-    envs = [make_env(env_name, seed, i, log_dir, add_timestep, allow_early_resets, map_width=map_width, render_gui=render_gui, print_map=print_map)
+                  device, allow_early_resets, num_frame_stack=None, 
+                  map_width=20, render_gui=False, print_map=False, 
+                  parallel_py2gui=False):
+    envs = [make_env(env_name, seed, i, log_dir, add_timestep, 
+        allow_early_resets, map_width=map_width, render_gui=render_gui, 
+        print_map=print_map, parallel_py2gui=parallel_py2gui)
             for i in range(num_processes)]
 
     if len(envs) > 1:
