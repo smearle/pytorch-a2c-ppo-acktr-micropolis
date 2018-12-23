@@ -69,7 +69,29 @@ def get_args():
     parser.add_argument('--map-width', type=int, default=20, 
                         help="width of micropolis map")
     parser.add_argument('--empty-start', action='store_true', default=False)
+    parser.add_argument('--model', default='fixed')
     parser.add_argument('--curiosity', action='store_true', default=False)
+    parser.add_argument('--no-reward', action='store_true', default=False)
+    parser.add_argument('--env-type', default='yeet')
+########################################### ICM
+    parser.add_argument(
+        '--eta', 
+        type=float, 
+        default=0.01, 
+        metavar='LR',            
+        help='scaling factor for intrinsic reward')
+    parser.add_argument(
+        '--beta', 
+        type=float, 
+        default=0.2,
+        metavar='LR',
+        help='balance between inverse & forward')
+    parser.add_argument(
+        '--lmbda', 
+        type=float, 
+        default=0.1,
+        metavar='LR',
+        help='lambda : balance between A2C & icm')
     args = parser.parse_args()
 
     args.cuda = not args.no_cuda and torch.cuda.is_available()

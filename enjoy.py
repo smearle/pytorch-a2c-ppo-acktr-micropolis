@@ -26,6 +26,8 @@ parser.add_argument('--map-width', type=int, default=50,
                     help='whether to use a non-deterministic policy')
 parser.add_argument('--print-map', action='store_true', default=False)
 parser.add_argument('--no-render', action='store_true', default=False)
+parser.add_argument('--max-step', type=int, default=None)
+parser.add_argument('--model', default=None)
 args = parser.parse_args()
 
 args.det = not args.non_det
@@ -36,13 +38,13 @@ env = make_vec_envs(args.env_name, args.seed + 1000, 1,
                             None, None, args.add_timestep, device='cpu',
                             allow_early_resets=False,
                             map_width=args.map_width,
-                            print_map=args.print_map, render_gui=not args.no_render, parallel_py2gui=False)
+                            print_map=args.print_map, render_gui=not args.no_render, parallel_py2gui=False, max_step = args.max_step)
 
 # Get a render function
 # render_func = get_render_func(env)
 
 # We need to use the same statistics for normalization as used in training
-actor_critic = Policy(env.observation_space.shape, env.action_space)
+actor_critic = Policy(env.observation_space.shape, env.action_space, args=args)
 #dict1 = torch.load(os.path.join(args.load_dir, args.env_name + "_weights.pt"))
 #dict2 = {}
 #for s in dict1.keys():
@@ -80,16 +82,24 @@ if args.env_name.find('Bullet') > -1:
         if (p.getBodyInfo(i)[0].decode() == "torso"):
             torsoId = i
 num_step = 0
+player_act = None
 while True:
     with torch.no_grad():
-        value, action, _, recurrent_hidden_states = actor_critic.act(
-            obs, recurrent_hidden_states, masks, deterministic=args.det)
+        value, action, _, _, recurrent_hidden_states = actor_critic.act(
+            obs, recurrent_hidden_states, masks, deterministic=args.det,
+            player_act=player_act)
 
     if num_step >= 5000:
         env.reset()
         num_step = 0
     # Obser reward and next obs
-    obs, reward, done, _ = env.step(action)
+    obs, reward, done, infos = env.step(action)
+
+    player_act = None
+    if infos[0]:
+        if 'player_move' in infos[0].keys():
+            player_act = infos[0]['player_move']
+
     num_step += 1
 
     masks.fill_(0.0 if done else 1.0)

@@ -31,7 +31,7 @@ except ImportError:
     pass
 
 
-def make_env(env_id, seed, rank, log_dir, add_timestep, allow_early_resets, map_width=20, render_gui=False, print_map=False, parallel_py2gui=False):
+def make_env(env_id, seed, rank, log_dir, add_timestep, allow_early_resets, map_width=20, render_gui=False, print_map=False, parallel_py2gui=False, noreward=False, max_step=None, args=None):
     def _thunk():
         if env_id.startswith("dm"):
             _, domain, task = env_id.split('.')
@@ -41,9 +41,9 @@ def make_env(env_id, seed, rank, log_dir, add_timestep, allow_early_resets, map_
             if 'micropolis' in env_id.lower():
                 print("ENV RANK: ", rank)
                 if rank == 0:
-                    env.setMapSize(map_width, print_map=print_map, parallel_gui=parallel_py2gui, render_gui=render_gui, empty_start=True)
+                    env.setMapSize(map_width, print_map=print_map, parallel_gui=parallel_py2gui, render_gui=render_gui, empty_start=True, noreward=noreward, max_step=max_step, rank=rank)
                 else:
-                    env.setMapSize(map_width)
+                    env.setMapSize(map_width, rank=rank)
 
         is_atari = hasattr(gym.envs, 'atari') and isinstance(
             env.unwrapped, gym.envs.atari.atari_env.AtariEnv)
@@ -75,11 +75,11 @@ def make_env(env_id, seed, rank, log_dir, add_timestep, allow_early_resets, map_
 
 def make_vec_envs(env_name, seed, num_processes, gamma, log_dir, add_timestep,
                   device, allow_early_resets, num_frame_stack=None, 
-                  map_width=20, render_gui=False, print_map=False, 
-                  parallel_py2gui=False):
+                  args=None, map_width=20, render_gui=False, print_map=False, 
+                  parallel_py2gui=False, noreward=False, max_step=None):
     envs = [make_env(env_name, seed, i, log_dir, add_timestep, 
         allow_early_resets, map_width=map_width, render_gui=render_gui, 
-        print_map=print_map, parallel_py2gui=parallel_py2gui)
+        print_map=print_map, parallel_py2gui=parallel_py2gui, noreward=noreward, max_step=max_step, args=args)
             for i in range(num_processes)]
 
     if len(envs) > 1:
@@ -102,7 +102,7 @@ def make_vec_envs(env_name, seed, num_processes, gamma, log_dir, add_timestep,
         print(num_frame_stack)
         envs = VecPyTorchFrameStack(envs, num_frame_stack, device)
     elif len(envs.observation_space.shape) == 3:
-        envs = VecPyTorchFrameStack(envs, 4, device)
+        envs = VecPyTorchFrameStack(envs, 1, device)
 
     return envs
 
@@ -158,8 +158,8 @@ class VecPyTorch(VecEnvWrapper):
         return obs
 
     def step_async(self, actions):
-        actions = actions.squeeze(1).cpu().numpy()
-        self.venv.step_async(actions)
+        actions_async = actions.squeeze(1).cpu().numpy()
+        self.venv.step_async(actions_async)
 
     def step_wait(self):
         obs, reward, done, info = self.venv.step_wait()

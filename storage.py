@@ -7,18 +7,25 @@ def _flatten_helper(T, N, _tensor):
 
 
 class RolloutStorage(object):
-    def __init__(self, num_steps, num_processes, obs_shape, action_space, recurrent_hidden_state_size):
+    def __init__(self, num_steps, num_processes, obs_shape, action_space, recurrent_hidden_state_size, args=None):
+        self.args=args
         self.obs = torch.zeros(num_steps + 1, num_processes, *obs_shape)
         self.recurrent_hidden_states = torch.zeros(num_steps + 1, num_processes, recurrent_hidden_state_size)
         self.rewards = torch.zeros(num_steps, num_processes, 1)
         self.value_preds = torch.zeros(num_steps + 1, num_processes, 1)
         self.returns = torch.zeros(num_steps + 1, num_processes, 1)
-        self.action_log_probs = torch.zeros(num_steps, num_processes, 1)
-        if action_space.__class__.__name__ == 'Discrete':
-            action_shape = 1
+        if args.env_name == 'MicropolisPaintEnv-v0':
+            action_shape = action_space.shape
+            self.action_log_probs = torch.zeros(num_steps, num_processes, *action_shape)
+            self.actions = torch.zeros(num_steps, num_processes, *action_shape)
         else:
-            action_shape = action_space.shape[0]
-        self.actions = torch.zeros(num_steps, num_processes, action_shape)
+            self.action_log_probs = torch.zeros(num_steps, num_processes, 1)
+            if action_space.__class__.__name__ == 'Discrete':
+                action_shape = 1
+            else:
+                action_shape = action_space.shape[0]
+            self.actions = torch.zeros(num_steps, num_processes, action_shape)
+
         if action_space.__class__.__name__ == 'Discrete':
             self.actions = self.actions.long()
         self.masks = torch.ones(num_steps + 1, num_processes, 1)
@@ -145,3 +152,46 @@ class RolloutStorage(object):
 
             yield obs_batch, recurrent_hidden_states_batch, actions_batch, \
                 value_preds_batch, return_batch, masks_batch, old_action_log_probs_batch, adv_targ
+
+
+class CuriosityRolloutStorage(RolloutStorage):
+
+    def __init__(self, num_steps, num_processes, obs_shape, action_space, recurrent_hidden_state_size, 
+            state_feature_space #, curiosity_reccurent_hidden_state_size
+            ):
+
+        super().__init__(num_steps, num_processes, obs_shape, action_space, recurrent_hidden_state_size)
+       #self.curiosity_recurrent_hidden_states = torch.zeros(num_steps + 1, num_processes, curiosity=_recurrent_hidden_state_size)
+
+        self.action_bins = torch.zeros(num_steps, num_processes, action_space.n)
+        self.action_dist_preds = torch.zeros(num_steps + 1, num_processes, action_space.n)
+        self.feature_states = torch.zeros(num_steps, num_processes, *state_feature_space)
+        self.feature_state_preds = torch.zeros(num_steps + 1, num_processes, *state_feature_space)
+
+    def to(self, device):
+        self.action_bins.to(device) 
+        self.action_dist_preds.to(device)
+        self.feature_states.to(device)
+        self.feature_state_preds.to(device)
+        super().to(device)
+
+    def insert(self, obs, recurrent_hidden_states, actions, action_log_probs, value_preds, rewards, masks,
+            feature_state, feature_state_pred, action_bin, action_dist_pred):
+        self.feature_states[self.step].copy_(feature_state)
+        self.feature_state_preds[self.step + 1].copy_(feature_state_pred)
+        self.action_bins[self.step].copy_(action_bin)
+        self.action_dist_preds[self.step + 1].copy_(action_dist_pred)
+        super().insert(obs, recurrent_hidden_states, actions, action_log_probs, value_preds, rewards, masks)
+
+
+    def after_update(self):
+        self.feature_state_preds[0].copy_(self.feature_state_preds[-1])
+        self.action_dist_preds[0].copy_(self.action_dist_preds[-1])
+       #self.curiosity_hidden_recurrent_states[0].copy_(self.curiosity_recurrent_hidden_states[-1])   
+        super().after_update()
+
+    def feed_forward_generator(self):
+        raise NotImplementedError
+
+    def recurrent_generator(self):
+        raise NotImplementedError

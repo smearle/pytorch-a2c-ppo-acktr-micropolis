@@ -33,15 +33,9 @@ class Categorical2D(nn.Module):
     def __init__(self, num_inputs, num_outputs):
         super(Categorical2D, self).__init__()
 
-        init_ = lambda m: init(m,
-             nn.init.dirac_,
-             lambda x: nn.init.constant_(x, 0),
-             gain = 0.01)
-             
-        self.conv = init_(nn.Conv2d(19, 19, 1, 1, 0))
-
     def forward(self, x):
-        x = self.conv(x)
+       #print(x)
+       #print(x.shape)
         x = x.view(x.size(0), -1)
         return FixedCategorical(logits=x)
 

@@ -49,7 +49,7 @@ def compute_cov_a(a, classname, layer_info, fast_cnn):
 def compute_cov_g(g, classname, layer_info, fast_cnn):
     batch_size = g.size(0)
 
-    if classname == 'Conv2d':
+    if classname == 'Conv2d' or classname == 'ConvTranspose2d':
         if fast_cnn:
             g = g.view(g.size(0), g.size(1), -1)
             g = g.sum(-1)
@@ -109,7 +109,7 @@ class KFACOptimizer(optim.Optimizer):
 
         super(KFACOptimizer, self).__init__(model.parameters(), defaults)
 
-        self.known_modules = {'Linear', 'Conv2d', 'AddBias'}
+        self.known_modules = {'Linear', 'Conv2d','ConvTranspose2d', 'AddBias'}
 
         self.modules = []
         self.grad_outputs = {}
@@ -145,7 +145,7 @@ class KFACOptimizer(optim.Optimizer):
         if torch.is_grad_enabled() and self.steps % self.Ts == 0:
             classname = module.__class__.__name__
             layer_info = None
-            if classname == 'Conv2d':
+            if classname == 'Conv2d' or classname == 'ConvTranspose2d':
                 layer_info = (module.kernel_size, module.stride,
                               module.padding)
 
